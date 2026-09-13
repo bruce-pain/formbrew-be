@@ -147,7 +147,7 @@ def mock_google_connect(monkeypatch, email="export@gmail.com"):
     monkeypatch.setattr(
         google_oauth,
         "exchange_code",
-        lambda code, code_verifier: {
+        lambda code, code_verifier, redirect_uri: {
             "refresh_token": "fake_refresh",
             "access_token": "fake_access",
             "id_token": "fake_id_token",
@@ -164,7 +164,11 @@ def connect(client, auth_headers):
     return client.post(
         "/api/v1/export/google/tokens",
         headers=auth_headers,
-        json={"code": "one-time-code", "code_verifier": "a" * 60},
+        json={
+            "code": "one-time-code",
+            "code_verifier": "a" * 60,
+            "redirect_uri": "http://localhost:3000/export/google/callback",
+        },
     )
 
 
@@ -203,7 +207,7 @@ class TestConnect:
         monkeypatch.setattr(
             google_oauth,
             "exchange_code",
-            lambda code, code_verifier: {
+            lambda code, code_verifier, redirect_uri: {
                 "refresh_token": "",
                 "access_token": "fake_access",
                 "id_token": "fake_id_token",
@@ -213,12 +217,69 @@ class TestConnect:
         assert res.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_connect_exchange_failure_400(self, client, auth_headers, monkeypatch):
-        def _boom(code, code_verifier):
+        def _boom(code, code_verifier, redirect_uri):
             raise Exception("invalid_grant")
 
         monkeypatch.setattr(google_oauth, "exchange_code", _boom)
         res = connect(client, auth_headers)
         assert res.status_code == status.HTTP_400_BAD_REQUEST
+
+    def test_connect_without_redirect_uri_422(self, client, auth_headers):
+        res = client.post(
+            "/api/v1/export/google/tokens",
+            headers=auth_headers,
+            json={"code": "one-time-code", "code_verifier": "a" * 60},
+        )
+        assert res.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+class TestExchangeRedirect:
+    def test_redirect_uri_forwarded_to_flow(self, monkeypatch):
+        seen = {}
+
+        class FakeCredentials:
+            refresh_token = "r"
+            token = "a"
+            id_token = "i"
+
+        class FakeFlow:
+            def __init__(self):
+                self.redirect_uri = None
+                self.credentials = FakeCredentials()
+
+            def fetch_token(self, code, code_verifier):
+                seen["code"] = code
+                seen["code_verifier"] = code_verifier
+
+        def fake_from_client_config(config, scopes):
+            seen["config"] = config
+            seen["scopes"] = scopes
+            flow = FakeFlow()
+            seen["flow"] = flow
+            return flow
+
+        monkeypatch.setattr(
+            google_oauth.Flow, "from_client_config", fake_from_client_config
+        )
+
+        tokens = google_oauth.exchange_code(
+            code="c",
+            code_verifier="v" * 60,
+            redirect_uri="http://localhost:3000/export/google/callback",
+        )
+
+        assert tokens == {
+            "refresh_token": "r",
+            "access_token": "a",
+            "id_token": "i",
+        }
+        assert (
+            seen["flow"].redirect_uri == "http://localhost:3000/export/google/callback"
+        )
+        assert seen["config"]["web"]["redirect_uris"] == [
+            "http://localhost:3000/export/google/callback"
+        ]
+        assert seen["code"] == "c"
 
 
 def make_form(title="Feedback", questions=None):

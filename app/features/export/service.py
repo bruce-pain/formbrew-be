@@ -75,10 +75,12 @@ class ExportService:
         )
 
     def connect(
-        self, user_id: str, code: str, code_verifier: str
+        self, user_id: str, code: str, code_verifier: str, redirect_uri: str
     ) -> schemas.GoogleConnectData:
         try:
-            tokens = google_oauth.exchange_code(code=code, code_verifier=code_verifier)
+            tokens = google_oauth.exchange_code(
+                code=code, code_verifier=code_verifier, redirect_uri=redirect_uri
+            )
         except Exception as exc:
             logger.warning("Google code exchange failed for user %s: %s", user_id, exc)
             raise HTTPException(

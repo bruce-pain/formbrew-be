@@ -29,17 +29,14 @@ SCOPES = [
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 
-# fetch_token validates the redirect_uri against the client config; we use the
-# authorized-out-of-band value because the redirect already happened
-# client-side (on the frontend).
-REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob:auto"
 
-
-def _client_config() -> Dict[str, Any]:
+def _client_config(redirect_uri: str) -> Dict[str, Any]:
     """The subset of an OAuth client descriptor our Flow needs."""
     return {
         "web": {
-            "redirect_uris": [REDIRECT_URI],
+            # The redirect already happened client-side (on the frontend);
+            # this must match the authorization request's redirect_uri.
+            "redirect_uris": [redirect_uri],
             "client_id": settings.GOOGLE_SHEETS_CLIENT_ID,
             "client_secret": settings.GOOGLE_SHEETS_CLIENT_SECRET,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -48,14 +45,14 @@ def _client_config() -> Dict[str, Any]:
     }
 
 
-def exchange_code(code: str, code_verifier: str) -> dict:
+def exchange_code(code: str, code_verifier: str, redirect_uri: str) -> dict:
     """Exchange the one-time authorization code for credentials.
 
     Returns a dict with 'refresh_token', 'access_token' and 'id_token'.
     Raises OAuthError/HttpError on invalid codes.
     """
-    flow = Flow.from_client_config(_client_config(), scopes=SCOPES)
-    flow.redirect_uri = REDIRECT_URI
+    flow = Flow.from_client_config(_client_config(redirect_uri), scopes=SCOPES)
+    flow.redirect_uri = redirect_uri
     flow.fetch_token(code=code, code_verifier=code_verifier)
     credentials = flow.credentials
     # NOTE: refresh_token may be absent if offline access was not granted.

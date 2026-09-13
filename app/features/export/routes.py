@@ -34,6 +34,7 @@ def connect_google_sheets(
         user_id=current_user.id,
         code=schema.code,
         code_verifier=schema.code_verifier,
+        redirect_uri=schema.redirect_uri,
     )
     return schemas.GoogleConnectResponse(
         status_code=status.HTTP_200_OK, message="Google Sheets connected", data=data

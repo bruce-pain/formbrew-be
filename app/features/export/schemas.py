@@ -8,6 +8,9 @@ from app.core.base.schema import BaseResponseModel
 class GoogleTokenExchangeRequest(BaseModel):
     code: str = Field(min_length=1)
     code_verifier: str = Field(min_length=43, max_length=128)
+    # Must exactly match the redirect_uri the frontend used in the
+    # authorization request — Google rejects the exchange otherwise.
+    redirect_uri: str = Field(min_length=1, max_length=2000)
 
 
 class GoogleExportStatus(BaseModel):
