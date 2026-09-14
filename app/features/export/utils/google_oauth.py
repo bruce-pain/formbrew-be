@@ -17,12 +17,15 @@ from app.core.config import settings
 
 # Scopes requested at consent. Must EXACTLY match what the frontend requests
 # when it builds the consent URL, and what the Cloud console allows.
-# openid + email let us read the user's address from the id_token.
+# Canonical URL forms: Google echoes scopes back canonically and oauthlib
+# rejects any difference ("Scope has changed"), so `email` must be spelled
+# as userinfo.email. `openid` is already canonical.
+# openid + userinfo.email let us read the user's address from the id_token.
 # spreadsheets + drive.file let us create a spreadsheet in the user's Drive,
 # restricted to files we create.
 SCOPES = [
     "openid",
-    "email",
+    "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.file",
 ]
