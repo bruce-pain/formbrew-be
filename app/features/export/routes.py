@@ -107,6 +107,16 @@ export_csv_router = APIRouter(prefix="/export/csv", tags=["CSV Export"])
     status_code=status.HTTP_200_OK,
     summary="Export form responses as CSV",
     description="Download the form's responses as a CSV file (Excel and Sheets compatible)",
+    response_class=StreamingResponse,
+    response_model=None,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "CSV file download",
+            "content": {
+                "text/csv": {"schema": {"type": "string", "format": "binary"}}
+            },
+        }
+    },
 )
 def export_form_to_csv(
     form_id: str,
