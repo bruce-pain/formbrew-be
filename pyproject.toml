@@ -7,18 +7,22 @@ requires-python = ">=3.12,<4"
 readme = "README.md"
 
 dependencies = [
-    "fastapi[standard]>=0.115.6,<0.116",
-    "uvicorn>=0.34.0,<0.35",
     "alembic>=1.14.0,<2",
+    "bcrypt>=5.0.0",
+    "cryptography>=43.0.3,<47",
+    "fastapi[standard]>=0.115.6,<0.116",
+    "google-api-python-client>=2.159.0,<3",
+    "google-auth-httplib2>=0.2.0,<1",
+    "google-auth-oauthlib>=1.2.1,<2",
+    "google-auth[requests]>=2.40,<3",
+    "groq>=1.4.0",
     "itsdangerous>=2.2.0,<3",
-    "python-jose>=3.3.0,<4",
     "psycopg2-binary>=2.9.10,<3",
     "pydantic-settings>=2.7.0,<3",
-    "uuid7>=0.1.0,<0.2",
+    "python-jose>=3.3.0,<4",
     "slowapi>=0.1.0,<0.2",
-    "groq>=1.4.0",
-    "bcrypt>=5.0.0",
-    "google-auth[requests]>=2.40,<3",
+    "uuid7>=0.1.0,<0.2",
+    "uvicorn>=0.34.0,<0.35",
 ]
 
 [dependency-groups]

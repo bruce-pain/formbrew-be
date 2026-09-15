@@ -7,6 +7,7 @@ from app.core.base.types import PydanticType
 from app.core.config import settings
 from app.core.database import Base
 from app.features.auth.models import User  # noqa: F401
+from app.features.export.models import UserGoogleToken  # noqa: F401
 from app.features.form.models import Form  # noqa: F401
 from app.features.llm.models import ConversationPrompt  # noqa: F401
 from app.features.response.models import Response  # noqa: F401
