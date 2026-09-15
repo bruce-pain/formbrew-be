@@ -1,10 +1,13 @@
-"""Google Sheets export tests.
+"""Response export tests (Google Sheets + CSV).
 
 Network boundaries (code exchange, id_token verification, Sheets API)
 are mocked with monkeypatch. Everything else runs against the test DB.
 """
 
 from datetime import datetime, timezone
+
+import csv
+import io
 
 import pytest
 from cryptography.fernet import Fernet
@@ -16,6 +19,7 @@ from app.features.export.models import UserGoogleToken
 from app.features.export.service import build_rows, build_spreadsheet_title
 from app.features.export.utils import google_oauth, google_sheets
 from app.features.export.utils.crypto import decrypt_token
+from app.features.export.utils.csv_export import build_csv_filename, rows_to_csv_bytes
 from app.features.form.models import Form, FormQuestion
 from app.features.response.models import Response, ResponseAnswer
 
@@ -172,7 +176,7 @@ def connect(client, auth_headers):
     )
 
 
-class TestExportStatus:
+class TestGoogleExportStatus:
     def test_status_not_connected(self, client, auth_headers):
         res = client.get("/api/v1/export/google/status", headers=auth_headers)
         assert res.status_code == status.HTTP_200_OK
@@ -183,7 +187,7 @@ class TestExportStatus:
         assert res.status_code == status.HTTP_401_UNAUTHORIZED
 
 
-class TestConnect:
+class TestGoogleConnect:
     def test_connect_stores_encrypted_token(
         self, client, auth_headers, db_session, registered_user, monkeypatch
     ):
@@ -233,7 +237,7 @@ class TestConnect:
         assert res.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-class TestExchangeRedirect:
+class TestGoogleExchangeRedirect:
     def test_redirect_uri_forwarded_to_flow(self, monkeypatch):
         seen = {}
 
@@ -360,7 +364,7 @@ class TestRowSerializer:
         assert len(edge) == 100
 
 
-class TestExportFlow:
+class TestGoogleExportFlow:
     def test_export_requires_ownership(
         self, client, other_auth_headers, created_form, monkeypatch
     ):
@@ -440,7 +444,7 @@ class TestExportFlow:
         assert res.json()["data"] == {"connected": False, "google_email": None}
 
 
-class TestDisconnect:
+class TestGoogleDisconnect:
     def test_disconnect_lifecycle(self, client, auth_headers, monkeypatch):
         mock_google_connect(monkeypatch)
         assert connect(client, auth_headers).status_code == status.HTTP_200_OK
@@ -454,4 +458,69 @@ class TestDisconnect:
         assert res.json()["data"] == {"connected": False, "google_email": None}
 
         res = client.post("/api/v1/export/google/disconnect", headers=auth_headers)
+        assert res.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestCsvUtils:
+    def test_rows_to_csv_bytes_roundtrip(self):
+        rows = [
+            ["Submitted At", "Name", "Colors"],
+            ["2026-01-01 00:00:00 UTC", "Ann, Jr.", "Blue, Red"],
+            ["2026-01-02 00:00:00 UTC", 'q"uote', "line\nbreak café"],
+        ]
+        content = rows_to_csv_bytes(rows)
+        assert content.startswith("﻿".encode("utf-8"))  # BOM for Excel
+        assert b"\r\n" in content
+        parsed = list(csv.reader(io.StringIO(content.decode("utf-8-sig"))))
+        assert parsed == rows
+
+    def test_rows_to_csv_bytes_header_only(self):
+        content = rows_to_csv_bytes([["Submitted At", "Name"]])
+        assert list(csv.reader(io.StringIO(content.decode("utf-8-sig")))) == [
+            ["Submitted At", "Name"]
+        ]
+
+    def test_build_csv_filename(self):
+        assert build_csv_filename("My Form! 2026") == "my-form-2026-responses.csv"
+        assert build_csv_filename("   ") == "form-responses.csv"
+        assert build_csv_filename("Export Form") == "export-form-responses.csv"
+        long_name = build_csv_filename("x" * 100)
+        assert long_name.endswith("-responses.csv")
+        assert len(long_name) <= len("x" * 50 + "-responses.csv")
+
+
+class TestCsvDownload:
+    def test_csv_download_success(self, client, auth_headers, created_response):
+        # no Google connection needed — CSV works connectionless
+        form_id = created_response["data"]["form_id"]
+        res = client.get(f"/api/v1/export/csv/{form_id}", headers=auth_headers)
+        assert res.status_code == status.HTTP_200_OK
+        assert res.headers["content-type"].startswith("text/csv")
+        assert "attachment" in res.headers["content-disposition"]
+        assert "export-form-responses.csv" in res.headers["content-disposition"]
+        assert res.content.startswith("﻿".encode("utf-8"))
+        parsed = list(csv.reader(io.StringIO(res.content.decode("utf-8-sig"))))
+        assert parsed[0] == ["Submitted At", "What is your name?", "Pick colors"]
+        assert parsed[1][1] == "John Doe"
+        assert parsed[1][2] == "Red, Blue"
+
+    def test_csv_empty_is_header_only(self, client, auth_headers, created_form):
+        form_id = created_form["data"]["id"]
+        res = client.get(f"/api/v1/export/csv/{form_id}", headers=auth_headers)
+        assert res.status_code == status.HTTP_200_OK
+        parsed = list(csv.reader(io.StringIO(res.content.decode("utf-8-sig"))))
+        assert parsed == [["Submitted At", "What is your name?", "Pick colors"]]
+
+    def test_csv_requires_ownership(self, client, other_auth_headers, created_form):
+        form_id = created_form["data"]["id"]
+        res = client.get(f"/api/v1/export/csv/{form_id}", headers=other_auth_headers)
+        assert res.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_csv_unauthorized(self, client, created_form):
+        form_id = created_form["data"]["id"]
+        res = client.get(f"/api/v1/export/csv/{form_id}")
+        assert res.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_csv_form_not_found(self, client, auth_headers):
+        res = client.get("/api/v1/export/csv/does-not-exist", headers=auth_headers)
         assert res.status_code == status.HTTP_404_NOT_FOUND
