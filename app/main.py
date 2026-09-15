@@ -8,11 +8,10 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy.exc import IntegrityError
-
-from app.core.limiter import limiter
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logger import logger
 from app.features.router import main_router
 
@@ -44,6 +43,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(main_router)

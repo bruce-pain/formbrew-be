@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     # Google Client ID
     GOOGLE_CLIENT_ID: str = ""
 
+    # Google Sheets export OAuth client
+    GOOGLE_SHEETS_CLIENT_ID: str = ""
+    GOOGLE_SHEETS_CLIENT_SECRET: str = ""
+    # Required encryption key for the stored refresh token.
+    # Generate with: uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Must stay stable across restarts — rotating orphans stored tokens!
+    GOOGLE_SHEETS_TOKEN_ENCRYPTION_KEY: str = ""
+
     # Directories
     MEDIA_DIR: str = os.path.join(BASE_DIR, "media")
     STATIC_DIR: str = os.path.join(BASE_DIR, "static")

@@ -14,31 +14,7 @@
 
 A REST API that lets users build dynamic forms through natural language conversations. Describe the form you want, and the API uses Groq's LLM to generate structured questions with proper validation rules. Iterate via follow-up prompts, publish, and collect responses, all through clean REST endpoints.
 
-**Frontend Repository:** [github.com/bruce-pain/formbrew-fe](https://github.com/bruce-pain/formbrew-fe)
-
-**Live Demo:** [API Docs](https://ai-form-builder-be.onrender.com/v1/docs) · [Frontend](https://formbrew.vercel.app/)
-
----
-
-## Architecture
-
-### LLM + Instruction Engine
-
-The LLM doesn't output final form JSON directly. Instead, it emits a list of deterministic editing operations (`set_title`, `add_question`, `update_question`, `remove_question`, `reorder_questions`) that a local instruction engine applies. This keeps the LLM's role narrow and verifiable: the engine enforces constraints like unique question IDs, valid reorderings, and type-appropriate validation rules.
-
-### Conversational Refinement
-
-Users can iteratively refine a form across multiple turns. Prior prompts are persisted and replayed alongside the current form state, enabling natural interactions like _"add a question about age"_ followed by _"make the email field required"_.
-
-### Layered Architecture
-
-Clean separation of concerns:
-
-```
-Routes (HTTP) → Service (Business Logic) → Repository (Data Access) → Database
-```
-
-Each layer is independently testable. Pydantic schemas handle request/response validation, and SQLAlchemy ORM manages persistence with Alembic for migrations.
+**Frontend:** [github.com/bruce-pain/formbrew-fe](https://github.com/bruce-pain/formbrew-fe) · **Live Demo:** [API Docs](https://ai-form-builder-be.onrender.com/v1/docs) · [Frontend](https://formbrew.vercel.app/)
 
 ---
 
@@ -59,52 +35,12 @@ Each layer is independently testable. Pydantic schemas handle request/response v
 
 ## Features
 
-- **JWT Authentication**: Register, login, and token refresh with access/refresh token pairs
-- **Google Sign-In**: Sign in or sign up with a Google account; existing email/password accounts are linked automatically
-- **Form CRUD**: Full create, read, update, delete for forms with structured question schemas
-- **AI Question Generation**: Describe a form in plain English; the LLM generates a complete set of questions with appropriate types (text / select / multi-select) and validation rules
-- **Public Response Collection**: Submit responses to published forms without authentication (ideal for embedding in external sites)
-- **Response Dashboard**: Authenticated users can view all responses collected for their forms
-- **Structured Logging**: Application and error logs persisted to file with rotation
-
----
-
-## API Endpoints
-
-### Authentication
-
-| Method | Path                         | Description                           |
-| ------ | ---------------------------- | ------------------------------------- |
-| POST   | `/api/v1/auth/register`      | Create a new user account             |
-| POST   | `/api/v1/auth/login`         | Login with email and password         |
-| POST   | `/api/v1/auth/google`        | Sign in or sign up with a Google ID token |
-| POST   | `/api/v1/auth/token/refresh` | Refresh access and refresh tokens     |
-| GET    | `/api/v1/auth/user`          | Get details of the authenticated user |
-
-### Forms
-
-| Method | Path                        | Description                               |
-| ------ | --------------------------- | ----------------------------------------- |
-| POST   | `/api/v1/forms`             | Create a new form                         |
-| GET    | `/api/v1/forms`             | List all forms for the authenticated user |
-| GET    | `/api/v1/forms/{id}`        | Get a single form                         |
-| PATCH  | `/api/v1/forms/{id}`        | Update a form                             |
-| DELETE | `/api/v1/forms/{id}`        | Delete a form                             |
-| GET    | `/api/v1/forms/public/{id}` | Get a published form (no auth required)   |
-
-### AI Question Generation
-
-| Method | Path          | Description                                                       |
-| ------ | ------------- | ----------------------------------------------------------------- |
-| POST   | `/api/v1/llm` | Generate or modify form questions using a natural language prompt |
-
-### Responses
-
-| Method | Path                                 | Description                                              |
-| ------ | ------------------------------------ | -------------------------------------------------------- |
-| POST   | `/api/v1/forms/{id}/responses`       | Submit a response to a published form (no auth required) |
-| GET    | `/api/v1/forms/{id}/responses`       | List all responses for a form (auth required)            |
-| GET    | `/api/v1/forms/{id}/responses/{rid}` | Get a single response (auth required)                    |
+- **JWT Authentication** — Register, login, and token refresh with access/refresh token pairs
+- **Google Sign-In** — Sign in or sign up with a Google account; existing email/password accounts are linked automatically
+- **Form CRUD** — Full create, read, update, delete for forms with structured question schemas
+- **AI Question Generation** — Describe a form in plain English; the LLM generates questions with appropriate types and validation rules
+- **Public Response Collection** — Submit responses to published forms without authentication
+- **Response Dashboard** — View all responses collected for your forms
 
 ---
 
@@ -113,70 +49,78 @@ Each layer is independently testable. Pydantic schemas handle request/response v
 ### Prerequisites
 
 - Python 3.12+
-- PostgreSQL
-- [uv](https://github.com/astral-sh/uv) (install via `curl -LsSf https://astral.sh/uv/install.sh | sh`)
+- [Docker](https://docs.docker.com/get-docker/)
 - A [Groq API key](https://console.groq.com/keys)
 
-### Setup
+### Setup with Docker
 
 ```sh
-# Clone the repository
 git clone https://github.com/bruce-pain/formbrew-be.git
 cd formbrew-be
 
-# Create environment file
 cp .env.sample .env
-
 # Fill in your environment variables (see table below)
-# Install dependencies
+
+docker compose up --build
+```
+
+The API starts at `http://localhost:8000`. Swagger docs at `http://localhost:8000/v1/docs`.
+
+### Local Setup (without Docker)
+
+Requires a running PostgreSQL instance.
+
+```sh
+git clone https://github.com/bruce-pain/formbrew-be.git
+cd formbrew-be
+
+cp .env.sample .env
+# Fill in your environment variables (see table below)
+
 make install
-
-# Run database migrations
 make upgrade
-
-# Start the development server
 make run
 ```
 
-The server starts at `http://localhost:8000`.
-
 ### Environment Variables
 
-| Variable               | Description                           |
-| ---------------------- | ------------------------------------- |
-| `ENVIRONMENT`          | Runtime environment (`dev` or `prod`) |
-| `DATABASE_TYPE`        | Database type (`postgresql`)          |
-| `DATABASE_NAME`        | Database name                         |
-| `DATABASE_USER`        | Database username                     |
-| `DATABASE_PASSWORD`    | Database password                     |
-| `DATABASE_HOST`        | Database host                         |
-| `DATABASE_PORT`        | Database port                         |
-| `GROQ_API_KEY`         | API key for Groq LLM access           |
+| Variable               | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| `ENVIRONMENT`          | Runtime environment (`dev` or `prod`)                    |
+| `DATABASE_TYPE`        | Database type (`postgresql`)                             |
+| `DATABASE_NAME`        | Database name                                            |
+| `DATABASE_USER`        | Database username                                        |
+| `DATABASE_PASSWORD`    | Database password                                        |
+| `DATABASE_HOST`        | Database host                                            |
+| `DATABASE_PORT`        | Database port                                            |
+| `GROQ_API_KEY`         | API key for Groq LLM access                              |
 | `GOOGLE_CLIENT_ID`     | Google OAuth client ID (Google sign-in); leave empty to disable |
-| `SECRET_KEY`           | Secret key for JWT signing            |
-| `ALGORITHM`            | JWT signing algorithm (`HS256`)       |
-| `ACCESS_TOKEN_EXPIRY`  | Access token lifetime in hours        |
-| `REFRESH_TOKEN_EXPIRY` | Refresh token lifetime in hours       |
-
-### Database Setup
-
-```sh
-# Create the database
-createdb your_database_name
-
-# Generate a new migration (after model changes)
-make migrate message="description of changes"
-
-# Apply pending migrations
-make upgrade
-```
-
-> [!IMPORTANT]
-> After adding new models, import them in `alembic/env.py` so Alembic can detect them.
+| `SECRET_KEY`           | Secret key for JWT signing                               |
+| `ALGORITHM`            | JWT signing algorithm (`HS256`)                          |
+| `ACCESS_TOKEN_EXPIRY`  | Access token lifetime in hours                           |
+| `REFRESH_TOKEN_EXPIRY` | Refresh token lifetime in hours                          |
 
 ---
 
-## Development Commands
+## API Reference
+
+The API exposes four groups of endpoints:
+
+| Group                | Description                                                             |
+| -------------------- | ----------------------------------------------------------------------- |
+| **Authentication**   | Register, login, Google sign-in, token refresh, get current user        |
+| **Forms**            | Create, list, update, delete forms, and retrieve published forms publicly |
+| **AI Generation**    | Generate or modify form questions using natural language prompts        |
+| **Responses**        | Submit responses to published forms (public) and view collected data    |
+
+Full request/response schemas are documented in the live Swagger UI:
+
+- **Swagger UI:** [ai-form-builder-be.onrender.com/v1/docs](https://ai-form-builder-be.onrender.com/v1/docs)
+- **ReDoc:** [ai-form-builder-be.onrender.com/v1/redoc](https://ai-form-builder-be.onrender.com/v1/redoc)
+
+---
+
+## Development
 
 | Command          | Description                              |
 | ---------------- | ---------------------------------------- |
@@ -188,98 +132,8 @@ make upgrade
 | `make test`      | Run the test suite                       |
 | `make lint`      | Check code for linting errors            |
 | `make format`    | Format the codebase                      |
-| `make clean`     | Remove cache and generated files         |
 
 Run `make help` to see all available commands.
-
----
-
-## Docker Development
-
-Run the backend and its own PostgreSQL in containers, so you don't need PostgreSQL installed globally.
-
-> [!IMPORTANT]
-> The container reads database credentials from your `.env` (`DATABASE_USER`, `DATABASE_PASSWORD`, `DATABASE_NAME`). Postgres is initialized from these values on a fresh database volume.
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/)
-- A `.env` file (see [Setup](#setup) above)
-- A [Groq API key](https://console.groq.com/keys)
-
-### Start the stack
-
-```sh
-docker compose up --build
-```
-
-This builds the `formbrew-backend` image and starts both the `app` (FastAPI on `http://localhost:8000`) and `postgres` (on port `5432`) containers. The `app` container bind-mounts `app/`, `tests/`, `alembic/`, and the `Makefile`, so code changes hot-reload without a rebuild.
-
-### Run commands inside the container
-
-Use `docker compose exec app make ...` to run the same Makefile targets in the container:
-
-```sh
-docker compose exec app make upgrade   # apply pending migrations
-docker compose exec app make lint     # lint check
-docker compose exec app make test     # run the test suite
-docker compose exec app make format   # format the codebase
-```
-
-### Create the test database (one-time per volume)
-
-Tests connect to a separate `test_db` database via `TEST_DATABASE_URL`. The Postgres container only auto-creates the app database (`DATABASE_NAME`), so create `test_db` once per fresh database volume:
-
-```sh
-docker compose exec postgres createdb -U "$DATABASE_USER" test_db
-```
-
-> [!WARNING]
-> `docker compose down -v` deletes the `pgdata` database volume. After doing this, you must re-apply migrations (`make upgrade`) **and** re-create `test_db` with the command above.
-
-### Stop the stack
-
-```sh
-docker compose down    # stop and remove containers, keep the database volume
-docker compose down -v # stop and remove containers AND wipe the database volume
-```
-
----
-
-## Project Structure
-
-```
-├── app/
-│   ├── core/
-│   │   ├── base/                  # Base classes (model, schema, repository)
-│   │   ├── dependencies/          # Dependency injection (auth, db session)
-│   │   ├── config.py              # Application settings
-│   │   ├── database.py            # Database connection setup
-│   │   ├── groq.py                # Groq client initialization
-│   │   ├── logger.py             # Logging configuration
-│   │   └── response_messages.py   # Standard API response helpers
-│   ├── features/
-│   │   ├── auth/                  # Authentication (register, login, JWT)
-│   │   ├── form/                  # Form CRUD operations
-│   │   ├── llm/                   # AI question generation via Groq
-│   │   ├── response/              # Form response collection
-│   │   └── router.py              # Central route aggregation
-│   └── main.py                    # Application entry point
-├── alembic/                       # Database migrations
-├── tests/                         # Test suite
-├── Makefile                       # Development command shortcuts
-├── pyproject.toml                 # Project configuration & dependencies
-└── .env.sample                    # Environment variable template
-```
-
----
-
-## API Documentation
-
-- **Swagger UI** (live): [ai-form-builder-be.onrender.com/v1/docs](https://ai-form-builder-be.onrender.com/v1/docs)
-- **Swagger UI** (local): [http://localhost:8000/v1/docs](http://localhost:8000/v1/docs)
-- **ReDoc** (live): [ai-form-builder-be.onrender.com/v1/redoc](https://ai-form-builder-be.onrender.com/v1/redoc)
-- **ReDoc** (local): [http://localhost:8000/v1/redoc](http://localhost:8000/v1/redoc)
 
 ---
 

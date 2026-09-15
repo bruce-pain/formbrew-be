@@ -1,4 +1,4 @@
-.PHONY: help run install migrate upgrade downgrade test lint format clean
+.PHONY: help run install migrate upgrade downgrade test lint format clean fernet
 .DEFAULT_GOAL := help
 
 help:  ## Show this help message
@@ -19,6 +19,9 @@ upgrade:  ## Apply all pending migrations
 
 downgrade:  ## Revert the last migration
 	uv run alembic downgrade -1
+
+fernet:  ## Generate a Fernet key for GOOGLE_SHEETS_TOKEN_ENCRYPTION_KEY
+	uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
 test:  ## Run test suite
 	uv run pytest tests/ -v
