@@ -12,6 +12,7 @@ from app.features.export import schemas
 from app.features.export.repository import ExportTokenRepository
 from app.features.export.utils import google_oauth, google_sheets
 from app.features.export.utils.crypto import decrypt_token, encrypt_token
+from app.features.export.utils.csv_export import build_csv_filename, rows_to_csv_bytes
 from app.features.form.models import Form
 from app.features.form.repository import FormRepository
 from app.features.response.models import Response
@@ -125,7 +126,25 @@ class ExportService:
                 detail="No connection to disconnect",
             )
 
-    # ----- export -----
+    # ----- csv export -----
+
+    def export_responses_to_csv(self, user_id: str, form_id: str) -> tuple[bytes, str]:
+        """Export a form's responses as CSV bytes + download filename.
+
+        Reuses build_rows so columns, ordering and cell formatting match
+        the Sheets export. Needs no Google connection.
+        """
+        form = self.form_repo.get_user_form(user_id, form_id)
+        if form is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Form not found"
+            )
+
+        responses = self.response_repo.get_by_form(form.id)
+        rows = build_rows(form, responses)
+        return rows_to_csv_bytes(rows), build_csv_filename(form.title)
+
+    # ----- sheets export -----
 
     def export_responses_to_sheets(
         self, user_id: str, form_id: str
