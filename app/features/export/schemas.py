@@ -13,13 +13,13 @@ class GoogleTokenExchangeRequest(BaseModel):
     redirect_uri: str = Field(min_length=1, max_length=2000)
 
 
-class GoogleExportStatus(BaseModel):
+class GoogleConnectionStatus(BaseModel):
     connected: bool
     google_email: Optional[str] = None
 
 
-class GoogleStatusResponse(BaseResponseModel):
-    data: GoogleExportStatus
+class GoogleConnectionStatusResponse(BaseResponseModel):
+    data: GoogleConnectionStatus
 
 
 class GoogleConnectData(BaseModel):

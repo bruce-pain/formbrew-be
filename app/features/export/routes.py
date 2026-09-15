@@ -1,4 +1,4 @@
-"""Export routes"""
+"""Response export routes (Google Sheets + CSV)."""
 
 from typing import Annotated
 
@@ -13,7 +13,7 @@ from app.features.auth.models import User
 from app.features.export import schemas
 from app.features.export.service import ExportService
 
-export_google_router = APIRouter(prefix="/export/google", tags=["Export"])
+export_google_router = APIRouter(prefix="/export/google", tags=["Google Export"])
 
 
 @export_google_router.post(
@@ -31,7 +31,7 @@ def connect_google_sheets(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     service = ExportService(db=db)
-    data = service.connect(
+    data = service.connect_google(
         user_id=current_user.id,
         code=schema.code,
         code_verifier=schema.code_verifier,
@@ -45,7 +45,7 @@ def connect_google_sheets(
 @export_google_router.get(
     path="/status",
     status_code=status.HTTP_200_OK,
-    response_model=schemas.GoogleStatusResponse,
+    response_model=schemas.GoogleConnectionStatusResponse,
     summary="Google Sheets connection status",
     description="Checks the database only — no Google network call",
 )
@@ -54,8 +54,8 @@ def get_google_export_status(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     service = ExportService(db=db)
-    data = service.get_status(user_id=current_user.id)
-    return schemas.GoogleStatusResponse(
+    data = service.get_google_status(user_id=current_user.id)
+    return schemas.GoogleConnectionStatusResponse(
         status_code=status.HTTP_200_OK, message="Status retrieved", data=data
     )
 
@@ -93,13 +93,13 @@ def disconnect_google_sheets(
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     service = ExportService(db=db)
-    service.disconnect(user_id=current_user.id)
+    service.disconnect_google(user_id=current_user.id)
     return schemas.GoogleDisconnectResponse(
         status_code=status.HTTP_200_OK, message="Google Sheets disconnected"
     )
 
 
-export_csv_router = APIRouter(prefix="/export/csv", tags=["Export"])
+export_csv_router = APIRouter(prefix="/export/csv", tags=["CSV Export"])
 
 
 @export_csv_router.get(

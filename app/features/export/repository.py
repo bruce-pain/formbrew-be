@@ -6,7 +6,7 @@ from app.core.base.repository import BaseRepository
 from app.features.export.models import UserGoogleToken
 
 
-class ExportTokenRepository(BaseRepository[UserGoogleToken]):
+class GoogleExportTokenRepository(BaseRepository[UserGoogleToken]):
     def __init__(self, db: Session):
         super().__init__(UserGoogleToken, db)
 

@@ -1,4 +1,4 @@
-"""Export service"""
+"""Response export service (Google Sheets + CSV)."""
 
 from typing import List
 
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logger import logger
 from app.features.export import schemas
-from app.features.export.repository import ExportTokenRepository
+from app.features.export.repository import GoogleExportTokenRepository
 from app.features.export.utils import google_oauth, google_sheets
 from app.features.export.utils.crypto import decrypt_token, encrypt_token
 from app.features.export.utils.csv_export import build_csv_filename, rows_to_csv_bytes
@@ -61,21 +61,21 @@ def build_rows(form: Form, responses: List[Response]) -> List[List[str]]:
 class ExportService:
     def __init__(self, db: Session):
         self.db = db
-        self.token_repo = ExportTokenRepository(db)
+        self.token_repo = GoogleExportTokenRepository(db)
         self.form_repo = FormRepository(db)
         self.response_repo = ResponseRepository(db)
 
-    # ----- connection lifecycle -----
+    # ----- google connection lifecycle -----
 
-    def get_status(self, user_id: str) -> schemas.GoogleExportStatus:
+    def get_google_status(self, user_id: str) -> schemas.GoogleConnectionStatus:
         token_row = self.token_repo.get_by_user(user_id)
         if token_row is None:
-            return schemas.GoogleExportStatus(connected=False, google_email=None)
-        return schemas.GoogleExportStatus(
+            return schemas.GoogleConnectionStatus(connected=False, google_email=None)
+        return schemas.GoogleConnectionStatus(
             connected=True, google_email=token_row.google_email
         )
 
-    def connect(
+    def connect_google(
         self, user_id: str, code: str, code_verifier: str, redirect_uri: str
     ) -> schemas.GoogleConnectData:
         try:
@@ -114,7 +114,7 @@ class ExportService:
         logger.info("Connected Google export for user %s (%s)", user_id, google_email)
         return schemas.GoogleConnectData(connected=True, google_email=google_email)
 
-    def disconnect(self, user_id: str) -> None:
+    def disconnect_google(self, user_id: str) -> None:
         deleted = self.token_repo.delete_for_user(user_id)
         # Local-only disconnect: we forget the token. We do NOT revoke it on
         # Google's side, so the Spreadsheets the user already owns keep working.
@@ -144,7 +144,7 @@ class ExportService:
         rows = build_rows(form, responses)
         return rows_to_csv_bytes(rows), build_csv_filename(form.title)
 
-    # ----- sheets export -----
+    # ----- google sheets export -----
 
     def export_responses_to_sheets(
         self, user_id: str, form_id: str
