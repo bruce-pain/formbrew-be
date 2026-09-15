@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -95,4 +96,29 @@ def disconnect_google_sheets(
     service.disconnect(user_id=current_user.id)
     return schemas.GoogleDisconnectResponse(
         status_code=status.HTTP_200_OK, message="Google Sheets disconnected"
+    )
+
+
+export_csv_router = APIRouter(prefix="/export/csv", tags=["Export"])
+
+
+@export_csv_router.get(
+    path="/{form_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Export form responses as CSV",
+    description="Download the form's responses as a CSV file (Excel and Sheets compatible)",
+)
+def export_form_to_csv(
+    form_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    service = ExportService(db=db)
+    content, filename = service.export_responses_to_csv(
+        user_id=current_user.id, form_id=form_id
+    )
+    return StreamingResponse(
+        iter([content]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
