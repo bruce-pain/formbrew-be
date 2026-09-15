@@ -95,6 +95,9 @@ make run
 | `DATABASE_PORT`        | Database port                                            |
 | `GROQ_API_KEY`         | API key for Groq LLM access                              |
 | `GOOGLE_CLIENT_ID`     | Google OAuth client ID (Google sign-in); leave empty to disable |
+| `GOOGLE_SHEETS_CLIENT_ID` | Google OAuth client ID (Sheets export); leave empty to disable |
+| `GOOGLE_SHEETS_CLIENT_SECRET` | Google OAuth client secret (Sheets export)               |
+| `GOOGLE_SHEETS_TOKEN_ENCRYPTION_KEY` | Fernet key for stored refresh tokens; generate with `make fernet`; must stay stable |
 | `SECRET_KEY`           | Secret key for JWT signing                               |
 | `ALGORITHM`            | JWT signing algorithm (`HS256`)                          |
 | `ACCESS_TOKEN_EXPIRY`  | Access token lifetime in hours                           |
