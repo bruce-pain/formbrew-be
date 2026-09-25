@@ -41,16 +41,13 @@ def sample_form_data():
                 "id": "q1",
                 "text": "What is your name?",
                 "answer_type": "text",
-                "answer_select_options": None,
-                "answer_select_multiple": None,
                 "required": True,
             },
             {
                 "id": "q2",
                 "text": "Select your preference",
                 "answer_type": "select",
-                "answer_select_options": ["Option A", "Option B"],
-                "answer_select_multiple": False,
+                "options": ["Option A", "Option B"],
                 "required": False,
             },
         ],
@@ -112,14 +109,7 @@ class TestCreateForm:
             "title": "Title",
             "description": "desc",
             "questions": [
-                {
-                    "id": "q1",
-                    "text": "",
-                    "answer_type": "text",
-                    "answer_select_options": None,
-                    "answer_select_multiple": None,
-                    "required": False,
-                }
+                {"id": "q1", "text": "", "answer_type": "text", "required": False}
             ],
         }
         response = client.post("/api/v1/forms", json=payload, headers=auth_headers)
@@ -134,8 +124,24 @@ class TestCreateForm:
                     "id": "q1",
                     "text": "Pick one",
                     "answer_type": "select",
-                    "answer_select_options": None,
-                    "answer_select_multiple": None,
+                    "options": [],
+                    "required": False,
+                }
+            ],
+        }
+        response = client.post("/api/v1/forms", json=payload, headers=auth_headers)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_create_form_checkbox_type_missing_options(self, client, auth_headers):
+        payload = {
+            "title": "Title",
+            "description": "desc",
+            "questions": [
+                {
+                    "id": "q1",
+                    "text": "Pick several",
+                    "answer_type": "checkbox",
+                    "options": [],
                     "required": False,
                 }
             ],
@@ -152,8 +158,7 @@ class TestCreateForm:
                     "id": "q1",
                     "text": "Your name",
                     "answer_type": "text",
-                    "answer_select_options": ["A"],
-                    "answer_select_multiple": None,
+                    "options": ["A"],
                     "required": False,
                 }
             ],

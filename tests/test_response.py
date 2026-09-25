@@ -46,16 +46,13 @@ def sample_form_data():
                 "id": "q1",
                 "text": "What is your name?",
                 "answer_type": "text",
-                "answer_select_options": None,
-                "answer_select_multiple": None,
                 "required": True,
             },
             {
                 "id": "q2",
                 "text": "Select your preference",
                 "answer_type": "select",
-                "answer_select_options": ["Option A", "Option B"],
-                "answer_select_multiple": False,
+                "options": ["Option A", "Option B"],
                 "required": True,
             },
         ],
@@ -90,14 +87,12 @@ def sample_response_data():
             {
                 "question_id": "q1",
                 "answer_type": "text",
-                "text_answer": "John Doe",
-                "select_answer": None,
+                "value": "John Doe",
             },
             {
                 "question_id": "q2",
                 "answer_type": "select",
-                "text_answer": None,
-                "select_answer": ["Option A"],
+                "selected_option": "Option A",
             },
         ],
     }
@@ -152,12 +147,7 @@ class TestSubmitResponse:
         form_id = published_form["data"]["id"]
         payload = {
             "answers": [
-                {
-                    "question_id": "q1",
-                    "answer_type": "text",
-                    "text_answer": None,
-                    "select_answer": None,
-                }
+                {"question_id": "q1", "answer_type": "text", "value": None}
             ],
         }
         response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
@@ -170,38 +160,41 @@ class TestSubmitResponse:
                 {
                     "question_id": "q2",
                     "answer_type": "select",
-                    "text_answer": None,
-                    "select_answer": None,
+                    "selected_option": None,
                 }
             ],
         }
         response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    def test_submit_response_text_with_select_answer(self, client, published_form):
+    def test_submit_response_text_answer_rejects_extra_field(
+        self, client, published_form
+    ):
         form_id = published_form["data"]["id"]
         payload = {
             "answers": [
                 {
                     "question_id": "q1",
                     "answer_type": "text",
-                    "text_answer": "foo",
-                    "select_answer": ["bar"],
+                    "value": "foo",
+                    "selected_option": "bar",
                 }
             ],
         }
         response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    def test_submit_response_select_with_text_answer(self, client, published_form):
+    def test_submit_response_select_answer_rejects_extra_field(
+        self, client, published_form
+    ):
         form_id = published_form["data"]["id"]
         payload = {
             "answers": [
                 {
                     "question_id": "q2",
                     "answer_type": "select",
-                    "text_answer": "foo",
-                    "select_answer": ["Option A"],
+                    "selected_option": "Option A",
+                    "value": "foo",
                 }
             ],
         }
@@ -212,12 +205,7 @@ class TestSubmitResponse:
         form_id = published_form["data"]["id"]
         payload = {
             "answers": [
-                {
-                    "question_id": "q3",
-                    "answer_type": "text",
-                    "text_answer": "foo",
-                    "select_answer": None,
-                }
+                {"question_id": "q3", "answer_type": "text", "value": "foo"}
             ],
         }
         response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
@@ -230,8 +218,7 @@ class TestSubmitResponse:
                 {
                     "question_id": "q1",
                     "answer_type": "select",
-                    "text_answer": None,
-                    "select_answer": ["Option A"],
+                    "selected_option": "Option A",
                 }
             ],
         }
@@ -245,8 +232,7 @@ class TestSubmitResponse:
                 {
                     "question_id": "q2",
                     "answer_type": "select",
-                    "text_answer": None,
-                    "select_answer": ["Option C"],
+                    "selected_option": "Option C",
                 }
             ],
         }
@@ -260,8 +246,119 @@ class TestSubmitResponse:
                 {
                     "question_id": "q2",
                     "answer_type": "select",
-                    "text_answer": None,
-                    "select_answer": ["Option A"],
+                    "selected_option": "Option A",
+                }
+            ],
+        }
+        response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_submit_response_checkbox_success(self, client, auth_headers):
+        form_data = {
+            "title": "Checkbox Form",
+            "description": "Form with a checkbox question",
+            "questions": [
+                {
+                    "id": "cq1",
+                    "text": "Pick topics",
+                    "answer_type": "checkbox",
+                    "options": ["A", "B", "C"],
+                    "required": False,
+                }
+            ],
+        }
+        response = client.post("/api/v1/forms", json=form_data, headers=auth_headers)
+        assert response.status_code == status.HTTP_201_CREATED
+        form_id = response.json()["data"]["id"]
+        response = client.patch(
+            f"/api/v1/forms/{form_id}",
+            json={"is_published": True},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        payload = {
+            "answers": [
+                {
+                    "question_id": "cq1",
+                    "answer_type": "checkbox",
+                    "selected_options": ["A", "C"],
+                }
+            ],
+        }
+        response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["data"]["answers"][0]["selected_options"] == ["A", "C"]
+
+    def test_submit_response_checkbox_empty_not_required(self, client, auth_headers):
+        form_data = {
+            "title": "Checkbox Form",
+            "description": "Form with a checkbox question",
+            "questions": [
+                {
+                    "id": "cq1",
+                    "text": "Pick topics",
+                    "answer_type": "checkbox",
+                    "options": ["A", "B", "C"],
+                    "required": False,
+                }
+            ],
+        }
+        response = client.post("/api/v1/forms", json=form_data, headers=auth_headers)
+        assert response.status_code == status.HTTP_201_CREATED
+        form_id = response.json()["data"]["id"]
+        response = client.patch(
+            f"/api/v1/forms/{form_id}",
+            json={"is_published": True},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        payload = {
+            "answers": [
+                {
+                    "question_id": "cq1",
+                    "answer_type": "checkbox",
+                    "selected_options": None,
+                }
+            ],
+        }
+        response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
+        assert response.status_code == status.HTTP_201_CREATED
+        data = response.json()
+        assert data["data"]["answers"][0]["selected_options"] is None
+
+    def test_submit_response_invalid_checkbox_option(self, client, auth_headers):
+        form_data = {
+            "title": "Checkbox Form",
+            "description": "Form with a checkbox question",
+            "questions": [
+                {
+                    "id": "cq1",
+                    "text": "Pick topics",
+                    "answer_type": "checkbox",
+                    "options": ["A", "B", "C"],
+                    "required": False,
+                }
+            ],
+        }
+        response = client.post("/api/v1/forms", json=form_data, headers=auth_headers)
+        assert response.status_code == status.HTTP_201_CREATED
+        form_id = response.json()["data"]["id"]
+        response = client.patch(
+            f"/api/v1/forms/{form_id}",
+            json={"is_published": True},
+            headers=auth_headers,
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        payload = {
+            "answers": [
+                {
+                    "question_id": "cq1",
+                    "answer_type": "checkbox",
+                    "selected_options": ["A", "ZZZ"],
                 }
             ],
         }
@@ -279,16 +376,13 @@ class TestSubmitResponse:
                     "id": "oq1",
                     "text": "Optional text",
                     "answer_type": "text",
-                    "answer_select_options": None,
-                    "answer_select_multiple": None,
                     "required": False,
                 },
                 {
                     "id": "oq2",
                     "text": "Optional select",
                     "answer_type": "select",
-                    "answer_select_options": ["X", "Y"],
-                    "answer_select_multiple": False,
+                    "options": ["X", "Y"],
                     "required": False,
                 },
             ],
@@ -306,25 +400,19 @@ class TestSubmitResponse:
 
         payload = {
             "answers": [
-                {
-                    "question_id": "oq1",
-                    "answer_type": "text",
-                    "text_answer": None,
-                    "select_answer": None,
-                },
+                {"question_id": "oq1", "answer_type": "text", "value": None},
                 {
                     "question_id": "oq2",
                     "answer_type": "select",
-                    "text_answer": None,
-                    "select_answer": None,
+                    "selected_option": None,
                 },
             ],
         }
         response = client.post(f"/api/v1/forms/{form_id}/responses", json=payload)
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
-        assert data["data"]["answers"][0]["text_answer"] is None
-        assert data["data"]["answers"][1]["select_answer"] is None
+        assert data["data"]["answers"][0]["value"] is None
+        assert data["data"]["answers"][1]["selected_option"] is None
 
 
 class TestListResponses:
