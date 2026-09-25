@@ -1,12 +1,16 @@
 """Form service"""
 
+from typing import List
+
 from fastapi import HTTPException, status
+from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
 from app.features.form import schemas
-from app.features.form.models import Form, FormQuestion
+from app.features.form.models import Form
 from app.features.form.repository import FormRepository
+from app.features.form.types import FormQuestion
 from app.features.llm.repository import ConversationRepository
 
 
@@ -20,11 +24,7 @@ class FormService:
         form = Form(
             title=schema.title,
             description=schema.description,
-            questions=(
-                [FormQuestion.model_validate(q) for q in schema.questions]
-                if schema.questions is not None
-                else None
-            ),
+            questions=schema.questions,
             conversation_id=schema.conversation_id,
             user_id=user_id,
         )
@@ -72,7 +72,7 @@ class FormService:
         )
         for key, value in update_data.items():
             if key == "questions" and value is not None:
-                value = [schemas.FormQuestionInput(**q) for q in value]
+                value = TypeAdapter(List[FormQuestion]).validate_python(value)
             setattr(form, key, value)
 
         # check if is_published is set to true

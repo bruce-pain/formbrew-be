@@ -1,57 +1,25 @@
 """Form request/response schemas"""
 
 from datetime import datetime
-from typing import Annotated, List, Optional, Self
+from typing import Annotated, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.base.schema import BaseResponseModel
-from app.features.form.models import FormQuestion
-
-
-class FormQuestionInput(FormQuestion):
-    """
-    Adds extra cross field validation
-    """
-
-    @model_validator(mode="after")
-    def check_answer_type(self: Self) -> Self:
-        if self.answer_type == "select":
-            if (
-                self.answer_select_options is None
-                or len(self.answer_select_options) < 1
-            ):
-                raise ValueError(
-                    "answer_select_options is required when answer_type is 'select'"
-                )
-            elif self.answer_select_multiple is None:
-                raise ValueError(
-                    "answer_select_multiple is required when answer_type is 'select'"
-                )
-        elif self.answer_type == "text":
-            if self.answer_select_options is not None:
-                raise ValueError(
-                    "answer_select_options must be None when answer_type is 'text'"
-                )
-            elif self.answer_select_multiple is not None:
-                raise ValueError(
-                    "answer_select_multiple must be None when answer_type is 'text'"
-                )
-
-        return self
+from app.features.form.types import FormQuestion
 
 
 class FormCreateRequest(BaseModel):
     title: Annotated[str, Field(min_length=1, max_length=255)]
     description: Annotated[str, Field(max_length=2000)]
-    questions: Optional[List[FormQuestionInput]] = Field(default=None, min_length=1)
+    questions: Optional[List[FormQuestion]] = Field(default=None, min_length=1)
     conversation_id: Optional[str] = None
 
 
 class FormUpdateRequest(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=255)
     description: Optional[str] = Field(default=None, max_length=2000)
-    questions: Optional[List[FormQuestionInput]] = Field(default=None, min_length=1)
+    questions: Optional[List[FormQuestion]] = Field(default=None, min_length=1)
     is_published: Optional[bool] = None
 
 
