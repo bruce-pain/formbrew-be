@@ -98,17 +98,32 @@ def _upgrade_answer(
             "value": answer.get("text_answer"),
         }
     if answer_type == "select":
-        if question_id not in multiplicity:
-            raise RuntimeError(
-                f"responses[{response_id}]: answer references unknown "
-                f"question_id '{question_id}' (form {form_id})"
-            )
         selected = answer.get("select_answer")
         if selected is not None and not isinstance(selected, list):
             raise RuntimeError(
                 f"responses[{response_id}]: answer to question "
                 f"'{question_id}' has non-list select_answer {selected!r}"
             )
+        if question_id not in multiplicity:
+            # Orphaned answer - form questions missing or question deleted.
+            # Infer multiplicity from the shape of the old select_answer.
+            if selected is None or len(selected) == 0:
+                return {
+                    "question_id": question_id,
+                    "answer_type": "select",
+                    "selected_option": None,
+                }
+            if len(selected) == 1:
+                return {
+                    "question_id": question_id,
+                    "answer_type": "select",
+                    "selected_option": selected[0],
+                }
+            return {
+                "question_id": question_id,
+                "answer_type": "checkbox",
+                "selected_options": selected,
+            }
         if multiplicity[question_id]:
             return {
                 "question_id": question_id,
