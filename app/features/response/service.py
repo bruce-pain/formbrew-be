@@ -6,11 +6,27 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.logger import logger
-from app.features.form.models import FormQuestion
 from app.features.form.repository import FormRepository
+from app.features.form.types import CheckboxQuestion, FormQuestion, SelectQuestion
 from app.features.response import schemas
-from app.features.response.models import Response, ResponseAnswer
+from app.features.response.models import Response
 from app.features.response.repository import ResponseRepository
+from app.features.response.types import (
+    CheckboxAnswer,
+    ResponseAnswer,
+    SelectAnswer,
+    TextAnswer,
+)
+
+
+def _is_answer_empty(answer: ResponseAnswer) -> bool:
+    match answer:
+        case TextAnswer():
+            return answer.value is None or len(answer.value) < 1
+        case SelectAnswer():
+            return answer.selected_option is None or len(answer.selected_option) < 1
+        case CheckboxAnswer():
+            return answer.selected_options is None or len(answer.selected_options) < 1
 
 
 class ResponseService:
@@ -70,49 +86,41 @@ class ResponseService:
                 )
 
             # check required questions have non-empty answers
-            if answer_question.required:
-                if answer.answer_type == "text" and (
-                    answer.text_answer is None or len(answer.text_answer) < 1
-                ):
-                    http_422_error(
-                        detail="Question '{}' is required but answer is empty".format(
-                            question_id
-                        )
+            if answer_question.required and _is_answer_empty(answer):
+                http_422_error(
+                    detail="Question '{}' is required but answer is empty".format(
+                        question_id
                     )
-                elif answer.answer_type == "select" and (
-                    answer.select_answer is None or len(answer.select_answer) < 1
-                ):
-                    http_422_error(
-                        detail="Question '{}' is required but answer is empty".format(
-                            question_id
-                        )
-                    )
+                )
 
-            # check if answer type is select
-            if (
-                answer.answer_type == "select"
-                and answer.select_answer
-                and answer_question.answer_select_options
-            ):
-                # check if the selected answer is in the questions options
+            # for select/checkbox answers, validate that the selected option(s)
+            # belong to the question's options
 
-                select_answer = answer.select_answer
-                select_options = answer_question.answer_select_options
-                for option in select_answer:
-                    if option not in select_options:
+            match answer, answer_question:
+                case SelectAnswer() as a, SelectQuestion() as q:
+                    if (
+                        a.selected_option is not None
+                        and a.selected_option not in q.options
+                    ):
                         http_422_error(
-                            detail="Invalid option '{}' for question '{}': expected one of [{}]".format(
-                                option, question_id, ", ".join(select_options)
+                            "Invalid option '{}' for question '{}': expected one of [{}]".format(
+                                answer.selected_option,
+                                question_id,
+                                ", ".join(answer_question.options),
                             )
                         )
 
-                # single-select: only one answer allowed
-                if answer_question.answer_select_multiple is False and len(select_answer) > 1:
-                    http_422_error(
-                        detail="Question '{}' is single-select but {} options were provided".format(
-                            question_id, len(select_answer)
-                        )
-                    )
+                case CheckboxAnswer() as a, CheckboxQuestion() as q:
+                    if a.selected_options:
+                        for option in a.selected_options:
+                            if option not in q.options:
+                                http_422_error(
+                                    "Invalid option '{}' for question '{}': expected one of [{}]".format(
+                                        option,
+                                        question_id,
+                                        ", ".join(q.options),
+                                    )
+                                )
 
             answered_question_ids.append(question_id)
 
@@ -146,7 +154,7 @@ class ResponseService:
 
         validated_answers = self._validate_answers(
             form_questions=form.questions,
-            answers=[ResponseAnswer.model_validate(a) for a in schema.answers],
+            answers=schema.answers,
         )
 
         response = Response(form_id=form_id, answers=validated_answers)

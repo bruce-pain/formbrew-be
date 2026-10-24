@@ -40,18 +40,17 @@ SYSTEM_PROMPT = """
     - Each question has an id (q1, q2, q3, ...) that defines display order
       and must start from q1.
     - New questions must use ids that don't conflict with existing questions.
-    - Questions can be one of two answer types:
-      - "text": a free-text input. Do not set answer_select_options or
-        answer_select_multiple.
-      - "select": a dropdown / choice input. Must include
-        answer_select_options (list of 2–6 choices) and
-        answer_select_multiple (true if multiple selections allowed, false
-        if single).
+    - Questions can be one of three answer types:
+      - "text": a free-text input. Only text and required apply.
+      - "select": a single-choice dropdown. Must include options (list of
+        2–6 choices); the respondent picks exactly one.
+      - "checkbox": a multi-select checkbox group. Must include options
+        (list of 2–6 choices); the respondent can pick multiple.
     - The required field indicates whether the question must be answered.
     - Question text must be clear, concise, and specific. Use second person
       ("you") where natural.
     - Do not include instructions like "select all that apply" in the question
-      text — use answer_select_multiple instead.
+      text — use the "checkbox" answer type instead.
     - Generate 3–10 questions unless the user specifies otherwise.
     - Title must be clear, concise, and reflect the form's purpose.
     - Description should explain the form's purpose and what data it collects.
