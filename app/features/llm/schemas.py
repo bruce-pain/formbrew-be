@@ -3,13 +3,13 @@ from typing import Annotated, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
 from app.core.base.schema import BaseResponseModel
-from app.features.form.schemas import FormQuestionInput
+from app.features.form.types import FormQuestion
 
 
 class FormResponse(BaseModel):
     title: Optional[str]
     description: Optional[str]
-    questions: List[FormQuestionInput]
+    questions: List[FormQuestion]
 
 
 class SetTitleInstruction(BaseModel):
@@ -24,14 +24,14 @@ class SetDescriptionInstruction(BaseModel):
 
 class AddQuestionInstruction(BaseModel):
     op: Literal["add_question"] = "add_question"
-    question: FormQuestionInput
+    question: FormQuestion
     after_id: Optional[str] = None
 
 
 class UpdateQuestionInstruction(BaseModel):
     op: Literal["update_question"] = "update_question"
     question_id: str
-    question: FormQuestionInput
+    question: FormQuestion
 
 
 class RemoveQuestionInstruction(BaseModel):

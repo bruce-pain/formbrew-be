@@ -17,6 +17,7 @@ from app.features.form.models import Form
 from app.features.form.repository import FormRepository
 from app.features.response.models import Response
 from app.features.response.repository import ResponseRepository
+from app.features.response.types import CheckboxAnswer, SelectAnswer, TextAnswer
 
 
 def build_spreadsheet_title(form: Form) -> str:
@@ -34,9 +35,10 @@ def build_rows(form: Form, responses: List[Response]) -> List[List[str]]:
 
     - Column 1 is the submission time (human-readable, UTC).
     - One column per question, in the form's question order.
-    - text answers → the raw text; missing/blank → "".
-    - select answers → options joined with ", "; none → "".
-    Works for single- and multiple-select alike. Unknown questions → "".
+    - text answers → the raw value; blank/missing → "".
+    - select answers → the single selected option; none → "".
+    - checkbox answers → selected options joined with ", "; none → "".
+    Unanswered or unknown questions → "".
     """
     questions = form.questions or []
     headers = ["Submitted At", *(q.text for q in questions)]
@@ -47,12 +49,15 @@ def build_rows(form: Form, responses: List[Response]) -> List[List[str]]:
         row: List[str] = [response.created_at.strftime("%Y-%m-%d %H:%M:%S UTC")]
         for q in questions:
             answer = answer_map.get(q.id)
-            if answer is None:
-                row.append("")
-            elif answer.answer_type == "text":
-                row.append((answer.text_answer or "").strip())
-            else:
-                row.append(", ".join(answer.select_answer or []))
+            match answer:
+                case None:
+                    row.append("")
+                case TextAnswer():
+                    row.append((answer.value or "").strip())
+                case SelectAnswer():
+                    row.append(answer.selected_option or "")
+                case CheckboxAnswer():
+                    row.append(", ".join(answer.selected_options or []))
         rows.append(row)
 
     return rows

@@ -1,23 +1,13 @@
 """Form data model"""
 
-from typing import Annotated, List, Literal, Optional
+from typing import List, Optional
 
-from pydantic import BaseModel, Field
 from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base.model import BaseTableModel
 from app.core.base.types import PydanticType
-
-
-# Define the question schema, use pydantic for validation
-class FormQuestion(BaseModel):
-    id: Annotated[str, Field(min_length=1)]
-    text: Annotated[str, Field(min_length=1, max_length=500)]
-    answer_type: Literal["text", "select"]
-    answer_select_options: Optional[List[str]] = None
-    answer_select_multiple: Optional[bool] = None
-    required: bool
+from app.features.form.types import FormQuestion
 
 
 class Form(BaseTableModel):

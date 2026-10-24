@@ -20,8 +20,10 @@ from app.features.export.service import build_rows, build_spreadsheet_title
 from app.features.export.utils import google_oauth, google_sheets
 from app.features.export.utils.crypto import decrypt_token
 from app.features.export.utils.csv_export import build_csv_filename, rows_to_csv_bytes
-from app.features.form.models import Form, FormQuestion
-from app.features.response.models import Response, ResponseAnswer
+from app.features.form.models import Form
+from app.features.form.types import CheckboxQuestion, TextQuestion
+from app.features.response.models import Response
+from app.features.response.types import CheckboxAnswer, TextAnswer
 
 
 @pytest.fixture(autouse=True)
@@ -80,16 +82,13 @@ def sample_form_data():
                 "id": "q1",
                 "text": "What is your name?",
                 "answer_type": "text",
-                "answer_select_options": None,
-                "answer_select_multiple": None,
                 "required": True,
             },
             {
                 "id": "q2",
                 "text": "Pick colors",
-                "answer_type": "select",
-                "answer_select_options": ["Red", "Blue"],
-                "answer_select_multiple": True,
+                "answer_type": "checkbox",
+                "options": ["Red", "Blue"],
                 "required": False,
             },
         ],
@@ -124,14 +123,12 @@ def sample_response_data():
             {
                 "question_id": "q1",
                 "answer_type": "text",
-                "text_answer": "John Doe",
-                "select_answer": None,
+                "value": "John Doe",
             },
             {
                 "question_id": "q2",
-                "answer_type": "select",
-                "text_answer": None,
-                "select_answer": ["Red", "Blue"],
+                "answer_type": "checkbox",
+                "selected_options": ["Red", "Blue"],
             },
         ],
     }
@@ -289,13 +286,11 @@ class TestGoogleExchangeRedirect:
 def make_form(title="Feedback", questions=None):
     if questions is None:
         questions = [
-            FormQuestion(id="q1", text="Name", answer_type="text", required=True),
-            FormQuestion(
+            TextQuestion(id="q1", text="Name", required=True),
+            CheckboxQuestion(
                 id="q2",
                 text="Colors",
-                answer_type="select",
-                answer_select_options=["Red", "Blue"],
-                answer_select_multiple=True,
+                options=["Red", "Blue"],
                 required=False,
             ),
         ]
@@ -313,22 +308,14 @@ class TestRowSerializer:
             datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc),
             [
                 # answers deliberately unordered
-                ResponseAnswer(
-                    question_id="q2",
-                    answer_type="select",
-                    select_answer=["Blue", "Red"],
-                ),
-                ResponseAnswer(
-                    question_id="q1",
-                    answer_type="text",
-                    text_answer="  Ann  ",
-                ),
+                CheckboxAnswer(question_id="q2", selected_options=["Blue", "Red"]),
+                TextAnswer(question_id="q1", value="  Ann  "),
             ],
         )
         r_old = make_response(
             datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
             [
-                ResponseAnswer(question_id="q1", answer_type="text", text_answer="Bob"),
+                TextAnswer(question_id="q1", value="Bob"),
             ],
         )
         rows = build_rows(form, [r_new, r_old])
@@ -342,10 +329,8 @@ class TestRowSerializer:
         r = make_response(
             datetime(2026, 1, 1, tzinfo=timezone.utc),
             [
-                ResponseAnswer(question_id="nope", answer_type="text", text_answer="x"),
-                ResponseAnswer(
-                    question_id="q2", answer_type="select", select_answer=None
-                ),
+                TextAnswer(question_id="nope", value="x"),
+                CheckboxAnswer(question_id="q2", selected_options=None),
             ],
         )
         assert build_rows(form, [r]) == [
