@@ -235,12 +235,17 @@ def _update_forms(connection: sa.Connection, transform) -> dict:
         params = []
         for row in rows:
             questions = _as_list(row["questions"])
+            if not questions:
+                form_multiplicity[row["id"]] = {}
+                params.append({"q": json.dumps([]), "id": row["id"]})
+                continue
             new_questions = [transform(q, row["id"]) for q in questions]
             params.append({"q": json.dumps(new_questions), "id": row["id"]})
             form_multiplicity[row["id"]] = {
                 q["id"]: q.get("answer_select_multiple") is True for q in questions
             }
-        connection.execute(update_stmt, params)
+        if params:
+            connection.execute(update_stmt, params)
         offset += BATCH_SIZE
     return form_multiplicity
 
